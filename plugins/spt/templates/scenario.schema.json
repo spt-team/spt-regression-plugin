@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SPT regression scenarios",
+  "type": "object",
+  "required": ["runId", "scenarios"],
+  "properties": {
+    "runId": { "type": "string" },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "priority", "executionMode", "components", "given", "when", "then"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SC-[0-9]{3}$" },
+          "title": { "type": "string" },
+          "category": { "enum": ["positive", "negative", "boundary", "bulk", "security", "integration", "regression", "e2e"] },
+          "priority": { "enum": ["P1", "P2", "P3"] },
+          "executionMode": { "enum": ["apex", "manual"] },
+          "components": { "type": "array", "items": { "type": "string" } },
+          "runAsProfile": { "type": "string" },
+          "given": { "type": "string" },
+          "when": { "type": "string" },
+          "then": { "type": "string" },
+          "testMethod": { "type": "string" }
+        }
+      }
+    }
+  }
+}
