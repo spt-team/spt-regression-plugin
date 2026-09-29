@@ -8,17 +8,19 @@ Run **`/spt:start`** in Claude Code (VS Code, CLI or desktop app) inside a Sales
 | # | Stage | The plugin asks | Output |
 |---|---|---|---|
 | 1 | Upload requirement | **"1. Upload the Requirement?"** (attach, give a path, or paste text; .docx / .pdf / .md / .txt) | Run folder |
-| 2 | Approval to analyse | **"2. Can I start the analysis based on the requirement against the local Salesforce metadata to identify the impacted areas and blast radius?"** | Gate |
-| 3 | Impact analysis | – | **`impact-analysis.xlsx`**: impacted components, dependencies, affected areas, blast radius, relevant metadata, risks and considerations |
-| 4 | E2E Test Case Simulation | **"3. Do you want to proceed with the End-to-End (E2E) Test Case Simulation?"** Yes, impacted areas only / Yes, overall org metadata / No, stop here | **`e2e-simulation.xlsx`**: end-to-end business flows traced step by step through the metadata, with each step predicted Pass / At risk / Fail, plus predicted issues, test data and coverage (simulation only; nothing runs in the org) |
+| 2 | Blast Radius Analysis, or straight to the test cases | **"2. Do you want to perform a Blast Radius Analysis, or proceed directly with the test cases based on the uploaded document?"** Yes, run the Blast Radius Analysis / No, go straight to the test cases / No, stop here | Gate |
+| 3 | Impact analysis | Once the document is generated: **"Do you want to answer the blocking questions, or any other questions, before we proceed?"** On Yes, the open questions Claude raised are put to you and your answers are folded back into the analysis | **`impact-analysis.xlsx`**: impacted components, dependencies, affected areas, blast radius, relevant metadata, risks and considerations |
+| 4 | End-to-End (E2E) test cases | **"Can I create the End-to-End (E2E) Test Cases file?"** Yes, impacted areas only / Yes, overall org metadata / No, stop here. On Yes, the overall requirement is analysed against the Salesforce metadata in your workspace and the complete E2E test cases are generated for the identified impact areas | **`e2e-simulation.xlsx`**: end-to-end business flows traced step by step through the metadata, with each step predicted Pass / At risk / Fail, plus predicted issues, test data and coverage (written from metadata; nothing runs in the org) |
 | 5 | Test cases & Regression Test Pack | **"Based on the identified changes and impacts, can I generate the possible test cases and Regression Test Pack?"** | **`regression-test-pack.xlsx`** |
 | 6 | Approval before execution | **"Do you approve executing these test cases in the sandbox?"** Approve all / approve selected / **No: stop, nothing is run** | Hash-locked approval |
 | 7 | Execution results | – | **`test-results.xlsx`**: passed and failed test cases, messages, manual checklist |
 | 8 | Failure analysis | **"Can I show the failure analysis and recommendations?"** | **`failure-analysis.xlsx`**: root cause, impacted components, recommended fixes, regression considerations |
 
-When the impact analysis (and later the E2E simulation) is ready, the plugin tells you exactly where it is: a clickable link to `impact-analysis.xlsx`, the blast radius report, the run folder, and the full path on disk.
+When the impact analysis (and later the E2E test cases file) is ready, the plugin tells you exactly where it is: a clickable link to `impact-analysis.xlsx`, the blast radius report, the run folder, and the full path on disk.
 
-Answering **No** at any gate stops the workflow and records the decision. Run `/spt:start` again to resume where you stopped, start a new requirement, or re-run the approved tests after a fix.
+Every question is asked as a pop-up prompt in VS Code, which you accept or decline; each answer is recorded in `run.json` and the audit log.
+
+Answering **No** at any gate stops the workflow and records the decision. Two answers are not a stop: choosing to go straight to the test cases at Stage 2 (the impact analysis and the E2E test cases are skipped, and the Regression Test Pack is built from the uploaded document alone), and declining the open questions at Stage 3 (they stay open and are carried into the analysis as assumptions). Run `/spt:start` again to resume where you stopped, start a new requirement, or re-run the approved tests after a fix.
 
 Global Salesforce rules are built into the plugin's skills. Client-specific behaviour lives in the client repo's `spt-org-knowledge.md`, which the workflow offers to update at the end of each run.
 
@@ -59,7 +61,7 @@ Commit this to each client project's `.claude/settings.json` so everyone who ope
 | File | Content |
 |---|---|
 | `impact-analysis.xlsx` | Stage 3 deliverable (also `blast-radius.md` / `.json`) |
-| `e2e-simulation.xlsx` | Stage 4 deliverable (also `e2e-simulation.md` / `.json`) |
+| `e2e-simulation.xlsx` | Stage 4 deliverable, the E2E test cases file (also `e2e-simulation.md` / `.json`) |
 | `regression-test-pack.xlsx` | Stage 5 deliverable (also `scenarios.md` / `.json`) |
 | `test-results.xlsx` | Stage 7 deliverable (also `results.json`) |
 | `failure-analysis.xlsx` | Stage 8 deliverable (also `failure-report.md` / `failure-analysis.json`) |

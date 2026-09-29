@@ -1,6 +1,6 @@
 ---
 name: start
-description: SPT guided Salesforce regression testing workflow. Upload a requirement, approve an impact (blast radius) analysis against the local Salesforce metadata, run an End-to-End (E2E) Test Case Simulation for the impacted areas or the overall org metadata, generate test cases and a Regression Test Pack, approve and run the tests in a sandbox, then review failure analysis and recommendations, with human approval at every stage. Use when the user wants to start, continue or resume SPT regression testing, test a requirement, or run a regression pack.
+description: SPT guided Salesforce regression testing workflow. Upload a requirement, choose between a blast radius analysis against the local Salesforce metadata and going straight to the test cases, answer the open questions the analysis raises, create the End-to-End (E2E) test cases for the impacted areas or the overall org metadata, generate test cases and a Regression Test Pack, approve and run the tests in a sandbox, then review failure analysis and recommendations, with human approval at every stage. Use when the user wants to start, continue or resume SPT regression testing, test a requirement, or run a regression pack.
 argument-hint: "[path-to-requirement]"
 allowed-tools: Bash(node:*), Bash(sf:*), Read, Write, Edit, Grep, Glob, Agent, Task, AskUserQuestion
 ---
@@ -13,8 +13,8 @@ You run a fixed eight-stage workflow. Scripts live in `${CLAUDE_PLUGIN_ROOT}/scr
 1. **Follow the stages in order. Never skip one, never run two approval-controlled stages without asking in between, and never answer a gate question on the user's behalf**, even if they say "do everything" or "don't ask again". If the user asks to skip ahead, explain that the workflow requires their approval and ask the gate question.
 2. **Ask gate questions with the AskUserQuestion tool**, using the exact wording given below, a two-option Yes/No choice (Yes first, except where a stage lists more options), and header `SPT gate`. If AskUserQuestion is not available, ask the same question as plain text and wait; only an explicit yes counts.
 3. **Record every gate decision right after the answer**, then act on it:
-   `node "S/workflow.mjs" gate <analysis|e2e|testgen|failures> --decision yes|no` (the `e2e` gate also takes `--scope impact|org` on yes). The execution gate is recorded by `approval-gate.mjs` (Stage 6).
-4. **"No" means stop.** Record it, confirm that nothing further was done, list the files produced so far, and say they can resume with `/spt:start`. Do not continue.
+   `node "S/workflow.mjs" gate <analysis|questions|e2e|testgen|failures> --decision yes|no` (the `analysis` gate also takes `--decision skip`; the `e2e` gate also takes `--scope impact|org` on yes). The execution gate is recorded by `approval-gate.mjs` (Stage 6).
+4. **"No" means stop.** Record it, confirm that nothing further was done, list the files produced so far, and say they can resume with `/spt:start`. Do not continue. Two answers are not a stop and are named as such in their stage: `skip` at the `analysis` gate (go straight to the test cases) and "No" at the `questions` gate (continue without answering the open questions).
 5. Stay within this workflow. Do not modify the client's Salesforce code or metadata, and never run anything against a production org.
 6. Tell the user where each deliverable is, using clickable relative links to the files in the run folder.
 
@@ -26,7 +26,7 @@ You run a fixed eight-stage workflow. Scripts live in `${CLAUDE_PLUGIN_ROOT}/scr
    - if the org knowledge file (`orgKnowledgeFile`, default `spt-org-knowledge.md`) is missing, copy `${CLAUDE_PLUGIN_ROOT}/templates/org-knowledge.md`, pre-fill what the metadata clearly shows (trigger handler classes, a class named like `TestDataFactory`, custom permissions named like `Bypass*`), and mark those lines `(detected - please confirm)`.
    If `sfdx-project.json` does not exist, stop: SPT must be run from a Salesforce DX project with its metadata retrieved.
 2. Run `node "S/workflow.mjs" status`.
-   - `next` is anything other than `upload`, `complete` or `stopped ...`: ask with AskUserQuestion whether to **continue run <runId> (<requirement>)** from where it stopped, or **start with a new requirement**. Continue means jump to the stage that matches `next`: `ask-analysis`→Stage 2, `analyse`→Stage 3, `ask-e2e`→Stage 4, `simulate-e2e`→Stage 4 step 3, `ask-testgen`→Stage 5, `generate-tests`→Stage 5 step 2, `ask-execution`→Stage 6, `execute`→Stage 7, `ask-failures`→Stage 8 question, `failure-analysis`→Stage 8 step 2.
+   - `next` is anything other than `upload`, `complete` or `stopped ...`: ask with AskUserQuestion whether to **continue run <runId> (<requirement>)** from where it stopped, or **start with a new requirement**. Continue means jump to the stage that matches `next`: `ask-analysis`→Stage 2, `analyse`→Stage 3, `ask-questions`→Stage 3 step 6, `ask-e2e`→Stage 4, `simulate-e2e`→Stage 4 step 3, `ask-testgen`→Stage 5, `generate-tests`→Stage 5 step 2, `ask-execution`→Stage 6, `execute`→Stage 7, `ask-failures`→Stage 8 question, `failure-analysis`→Stage 8 step 2.
    - `next` is `complete` and the run has an approval: ask whether to **re-run the approved tests for run <runId>** (e.g. after a fix was deployed) or **start with a new requirement**. Re-run: `node "S/workflow.mjs" reset-execution`, then Stage 7. (Choosing re-run is the user's approval to execute the already-approved test cases.)
    - `next` is `stopped (user declined <gate>)`: ask whether to **reopen run <runId> and ask the <gate> question again**, or **start with a new requirement**. Reopen: `node "S/workflow.mjs" reopen`, then run `status` again and continue from its `next`.
    - Otherwise go to Stage 1.
@@ -41,10 +41,16 @@ Then add one line: they can attach the file (drag it in or use @), give its path
 - Then run `node "S/start-run.mjs" --requirement "<path>"` and read the requirement from the `readRequirementFrom` path it prints.
 - Show a 3–5 line summary of what you understood (business need, what changes, acceptance criteria count).
 
-## Stage 2: Approval to analyse
-AskUserQuestion, exact question:
-**"2. Can I start the analysis based on the requirement against the local Salesforce metadata to identify the impacted areas and blast radius?"**
-Options: `Yes, start the analysis` / `No, stop here`. Record gate `analysis`.
+## Stage 2: Blast Radius Analysis, or straight to the test cases
+Ask this as soon as the requirement is uploaded and summarised. AskUserQuestion, header `SPT gate`, exact question:
+**"2. Do you want to perform a Blast Radius Analysis, or proceed directly with the test cases based on the uploaded document?"**
+Options, in this order, with these descriptions:
+- `Yes, run the Blast Radius Analysis`: "Analyse the requirement against the local Salesforce metadata first, to identify the impacted areas and the blast radius. The test cases are then based on what the metadata shows. (Recommended)"
+- `No, go straight to the test cases`: "Skip the impact analysis and the E2E test cases, and generate the Regression Test Pack from the uploaded document alone. Quicker, but the test cases are not backed by the metadata and coverage of impacted components cannot be shown."
+- `No, stop here`: "Stop the workflow. Nothing is analysed, and you can resume later with /spt:start."
+
+Record gate `analysis`: `--decision yes`, `--decision skip`, or `--decision no` (Rule 4).
+On skip: say in one line that the impact analysis and the E2E test cases are skipped and the test cases will come from the requirement only, then go straight to **Stage 5**.
 
 ## Stage 3: Impact analysis → Excel
 1. `node "S/build-metadata-index.mjs"`. If very few components are indexed, warn that the local metadata may be stale (suggest `sf project retrieve start --manifest manifest/package.xml --target-org <alias>`), but continue.
@@ -62,25 +68,30 @@ Options: `Yes, start the analysis` / `No, stop here`. Record gate `analysis`.
 
    List Summary and Impacted Components, and only those other sheets that `export-xlsx.mjs` reported with a count above 0. Empty sheets are not written.
 5. Then present: overall risk; counts by risk and component type; the High-risk components (type, API name, why); key dependencies; potentially affected areas; main risks and considerations; assumptions and open questions (blocking first).
-6. If there are **blocking** open questions, ask the user to answer them (plain text) before continuing. If the user answers questions or asks to add, remove or re-rate components: verify each added component exists locally (otherwise put it in `notAnalysable`), move removed ones to `removedByReviewer[]` with the reason, move answered questions to `resolvedQuestions[]`, update both blast-radius files, re-run `export-xlsx.mjs impact`, and show the step 4 block again with the words "updated impact analysis".
+6. **Open questions.** Once the Impact Analysis document has been generated and presented, AskUserQuestion, header `SPT gate`, exact question:
+   **"Do you want to answer the blocking questions, or any other questions, before we proceed?"**
+   Options: `Yes, let me answer them` / `No, continue without answering`. Record gate `questions`. A "No" here does **not** stop the workflow (it is the one exception to Rule 4): say the questions stay open and are carried into the analysis as assumptions, then go to Stage 4.
+   - On yes: show the open questions from `blast-radius.json` `openQuestions[]` as plain text, numbered, **blocking ones first and labelled `(blocking)`**, each with one line of context explaining why it matters and what you will do with the answer. Add: they can answer all of them, answer only some, say "skip" for any question, and raise anything else about the analysis. Then wait.
+   - When they answer, apply the answers as in step 7.
+7. **Applying answers and review changes.** If the user answered questions, or asks to add, remove or re-rate components: move each answered question to `resolvedQuestions[]` with its answer and correct the components, risks and affected areas it changes, verify each added component exists locally (otherwise put it in `notAnalysable`), move removed ones to `removedByReviewer[]` with the reason, update both blast-radius files, re-run `export-xlsx.mjs impact`, and show the step 4 block again with the words "updated impact analysis". Then ask once whether they have anything else to answer or change, and repeat this step until they are done.
 
-## Stage 4: End-to-End (E2E) Test Case Simulation
-Ask this right after the impact analysis has been presented (and any blocking questions answered).
-1. First explain in plain text, in two short lines: *The E2E Test Case Simulation walks through complete business processes (for example, create → update → approve → close) step by step, using your local Salesforce metadata, and predicts where each step would pass, be at risk, or fail. It is a simulation only: no records are created and nothing runs in any org.*
+## Stage 4: End-to-End (E2E) Test Cases
+Ask this once the open questions have been dealt with (Stage 3 step 6), whether they were answered or not.
+1. First explain in plain text, in two short lines: *The E2E test cases walk through complete business processes (for example, create → update → approve → close) step by step against your local Salesforce metadata, and predict where each step would pass, be at risk, or fail. They are written from the metadata only: no records are created and nothing runs in any org.*
 2. AskUserQuestion, header `SPT gate`, exact question:
-   **"3. Do you want to proceed with the End-to-End (E2E) Test Case Simulation?"**
+   **"Can I create the End-to-End (E2E) Test Cases file?"**
    Options, in this order, with these descriptions:
-   - `Yes, impacted areas only`: "Simulate E2E business flows through the impacted areas and blast radius found in the impact analysis. Focused and quicker. (Recommended)"
-   - `Yes, overall org metadata`: "Simulate E2E business flows across the overall org metadata, including related processes outside the blast radius that share the same objects. Wider coverage; takes longer."
+   - `Yes, impacted areas only`: "Build the E2E test cases for the impacted areas and blast radius found in the impact analysis. Focused and quicker. (Recommended)"
+   - `Yes, overall org metadata`: "Build the E2E test cases across the overall org metadata, including related processes outside the blast radius that share the same objects. Wider coverage; takes longer."
    - `No, stop here`: "Stop the workflow. The impact analysis is kept, and you can resume later with /spt:start."
    Record gate `e2e`: `--decision yes --scope impact`, `--decision yes --scope org`, or `--decision no` (Rule 4).
-3. On yes: run `node "S/build-metadata-index.mjs"` only if `.spt/index/metadata-index.json` is missing, then delegate to the **e2e-simulator** agent with the run folder path. It reads the scope from `run.json` and writes `e2e-simulation.json` and `e2e-simulation.md`.
+3. On yes: run `node "S/build-metadata-index.mjs"` only if `.spt/index/metadata-index.json` is missing, then delegate to the **e2e-simulator** agent with the run folder path. It analyses the overall requirement against the Salesforce metadata available locally in this workspace, and writes the complete E2E test cases for the identified impact areas to `e2e-simulation.json` and `e2e-simulation.md`, using the scope and the answered questions recorded in `run.json` and `blast-radius.json`.
 4. `node "S/export-xlsx.mjs" e2e` → `e2e-simulation.xlsx`. Keep the `written`, `folder` and `absolutePath` values it prints.
-5. **Tell the user where the simulation file is, before anything else**, in the same format as Stage 3 step 4:
+5. **Tell the user where the E2E test cases file is, before anything else**, in the same format as Stage 3 step 4:
 
-   > **Your E2E Test Case Simulation is ready** (scope: impacted areas and blast radius | overall org metadata).
-   > - E2E simulation (Excel): [e2e-simulation.xlsx](<written>)
-   > - Simulation report: [e2e-simulation.md](<folder>/e2e-simulation.md)
+   > **Your End-to-End (E2E) Test Cases file is ready** (scope: impacted areas and blast radius | overall org metadata).
+   > - E2E test cases (Excel): [e2e-simulation.xlsx](<written>)
+   > - E2E test case report: [e2e-simulation.md](<folder>/e2e-simulation.md)
    > - Folder: `<folder>/`
    > - Full path: `<absolutePath>`
    >
@@ -93,7 +104,8 @@ Ask this right after the impact analysis has been presented (and any blocking qu
 1. AskUserQuestion, exact question:
    **"Based on the identified changes and impacts, can I generate the possible test cases and Regression Test Pack?"**
    Options: `Yes, generate the test cases` / `No, stop here`. Record gate `testgen`.
-2. On yes: `node "S/finalize-blast-radius.mjs" finalise` (locks the analysis the tests are based on), then delegate to the **test-designer** agent. It also uses `e2e-simulation.json`, so every simulated E2E flow becomes at least one `e2e` test case. It writes `scenarios.json` (valid against `${CLAUDE_PLUGIN_ROOT}/templates/scenario.schema.json`) and `scenarios.md` (each test case as an unticked `- [ ] **SC-###**` line).
+2. On yes: `node "S/finalize-blast-radius.mjs" finalise` (locks the analysis the tests are based on), then delegate to the **test-designer** agent. It also uses `e2e-simulation.json`, so every E2E flow becomes at least one `e2e` test case. It writes `scenarios.json` (valid against `${CLAUDE_PLUGIN_ROOT}/templates/scenario.schema.json`) and `scenarios.md` (each test case as an unticked `- [ ] **SC-###**` line).
+   If the analysis was skipped at Stage 2, there is no `blast-radius.json` and no `e2e-simulation.json`: the test designer works from the requirement alone. Say so in one line, and tell the user the pack has no metadata-backed coverage figures.
 3. `node "S/export-xlsx.mjs" testpack` → `regression-test-pack.xlsx`.
 4. Present: number of test cases by priority, category and mode (apex = automated, manual = tester checklist); the coverage of High-risk components and of the E2E flows; anything not covered and why; links to `regression-test-pack.xlsx` and `scenarios.md`.
 

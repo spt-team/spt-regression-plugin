@@ -84,15 +84,15 @@ if (kind === 'impact') {
   const byOutcome = countBy(flows, f => f.predictedOutcome);
   file = 'e2e-simulation.xlsx';
   sheets = [
-    summarySheet('End-to-End (E2E) Test Case Simulation', [
+    summarySheet('End-to-End (E2E) Test Cases', [
       ...base,
-      ['Simulation scope', sim.scope === 'org' ? 'Overall org metadata' : 'Impacted areas and blast radius'],
+      ['Scope', sim.scope === 'org' ? 'Overall org metadata' : 'Impacted areas and blast radius'],
       ['Summary', text(sim.summary)],
-      ['E2E flows simulated', flows.length],
+      ['E2E flows', flows.length],
       ...kv(byOutcome).map(([k, v]) => [`  Predicted ${k}`, v]),
       ['Simulation steps', steps.length],
       ['Predicted issues', (sim.issues || []).length],
-      ['Note', 'Simulated from the local metadata only. No records were created and nothing was run in any org.'],
+      ['Note', 'Written from the local metadata only. No records were created and nothing was run in any org.'],
     ]),
     { name: 'E2E Flows', columns: [
       { header: 'Flow ID', width: 10 }, { header: 'Name', width: 40 }, { header: 'Business process', width: 30 }, { header: 'Starting point', width: 30 },
@@ -131,7 +131,9 @@ if (kind === 'impact') {
   });
   sheets = [
     summarySheet('Regression Test Pack', [
-      ...base, ['Test cases', sc.length],
+      ...base,
+      ['Impact analysis', br ? 'Included' : 'Skipped - test cases generated from the uploaded requirement only'],
+      ['Test cases', sc.length],
       ...kv(countBy(sc, s => s.priority)).map(([k, v]) => [`  Priority ${k}`, v]),
       ...kv(countBy(sc, s => s.executionMode)).map(([k, v]) => [`  Mode: ${k}`, v]),
       ...kv(countBy(sc, s => s.category)).map(([k, v]) => [`  Category: ${k}`, v]),

@@ -60,8 +60,11 @@ export function tags(xml, name) {
 }
 export function blocks(xml, name) { return tags(xml, name); }
 
-// Human decisions recorded at each workflow gate (see workflow.mjs).
-export const GATES = ['analysis', 'e2e', 'testgen', 'execution', 'failures'];
+// Human decisions recorded at each workflow gate, in the order they are asked (see workflow.mjs).
+export const GATES = ['analysis', 'questions', 'e2e', 'testgen', 'execution', 'failures'];
+// Gates where "no" stops the workflow. "questions" is not one of them: answering the
+// open questions from the impact analysis is optional, so "no" just moves to the next stage.
+export const STOP_GATES = GATES.filter(g => g !== 'questions');
 export function requireGate(gate, dir = runDir()) {
   const runFile = path.join(dir, 'run.json');
   const g = fs.existsSync(runFile) ? JSON.parse(fs.readFileSync(runFile, 'utf8')).gates?.[gate] : null;
