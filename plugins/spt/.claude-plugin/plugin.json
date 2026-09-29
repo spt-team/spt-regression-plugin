@@ -1,7 +1,7 @@
 {
   "name": "spt",
-  "version": "0.4.0",
-  "description": "SPT Regression as a Service: one guided /spt:start workflow with human approval at every stage. Requirement -> impact analysis (Excel) -> E2E test case simulation -> test cases & Regression Test Pack -> approval -> sandbox run -> failure analysis & recommendations",
+  "version": "0.5.0",
+  "description": "SPT Regression as a Service: one guided /spt:start workflow with human approval at every stage. Requirement -> optional impact analysis (Excel) -> open questions -> E2E test cases -> test cases & Regression Test Pack -> approval -> sandbox run -> failure analysis & recommendations",
   "author": { "name": "Aphex Solutions - SPT" },
   "keywords": ["salesforce", "regression", "testing", "blast-radius", "impact-analysis", "sfdx"]
 }

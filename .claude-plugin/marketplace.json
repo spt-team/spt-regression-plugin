@@ -8,8 +8,8 @@
     {
       "name": "spt",
       "source": "./plugins/spt",
-      "description": "Requirement-driven Salesforce regression testing: analyses an uploaded requirement against the Salesforce metadata in your VS Code workspace to run a Blast Radius Analysis, then test case generation, human approval, sandbox execution and failure analysis, all through one guided /spt:start workflow with Excel deliverables.",
-      "version": "0.4.0"
+      "description": "Requirement-driven Salesforce regression testing: analyses an uploaded requirement against the Salesforce metadata in your VS Code workspace to run a Blast Radius Analysis (or skip straight to the test cases), then E2E test cases, test case generation, human approval, sandbox execution and failure analysis, all through one guided /spt:start workflow with Excel deliverables.",
+      "version": "0.5.0"
     }
   ]
 }

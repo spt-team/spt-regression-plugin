@@ -13,22 +13,22 @@
 | Execution | `apex-test-author` agent + `sf` CLI | Real org automation (flows, triggers, VRs) runs inside Apex tests |
 | Result parsing | `parse-results.mjs` | Deterministic mapping via the `SC_###` method prefix |
 | Diagnosis and recommendations | `failure-analyst` agent + `sf-remediation` skill | Judgement |
-| E2E Test Case Simulation | `e2e-simulator` agent (traces business flows through the metadata in order of execution; nothing runs in the org) | Judgement |
+| End-to-End (E2E) test cases | `e2e-simulator` agent (traces business flows through the metadata in order of execution; nothing runs in the org) | Judgement |
 | Excel deliverables | `export-xlsx.mjs` (zero-dependency writer in `lib/xlsx.mjs`) | Same layout every run |
 
 ## Stages and gates
 | # | Stage | Gate (recorded in `run.json.gates`) | Deliverable |
 |---|---|---|---|
 | 1 | Upload requirement | – | `requirement.*` |
-| 2 | Approval to analyse | `analysis` | – |
-| 3 | Impact analysis | – | `impact-analysis.xlsx` |
-| 4 | E2E Test Case Simulation | `e2e` with `scope: impact` (impacted areas and blast radius) or `org` (overall org metadata); `e2e-simulator` agent | `e2e-simulation.xlsx` |
-| 5 | Test cases & Regression Test Pack | `testgen` (also locks the analysis via `finalize-blast-radius.mjs`) | `regression-test-pack.xlsx` |
+| 2 | Blast Radius Analysis, or straight to the test cases | `analysis`: `yes` (analyse), `skip` (go to Stage 5 with no blast radius and no E2E test cases) or `no` (stop) | – |
+| 3 | Impact analysis, then the open questions | `questions`: `yes` (the user answers the questions Claude raised; the answers move to `resolvedQuestions[]` and the analysis is re-exported) or `no` (continue, questions stay open). A `no` here does not stop the run | `impact-analysis.xlsx` |
+| 4 | End-to-End (E2E) test cases | `e2e` with `scope: impact` (impacted areas and blast radius) or `org` (overall org metadata); `e2e-simulator` agent | `e2e-simulation.xlsx` |
+| 5 | Test cases & Regression Test Pack | `testgen` (also locks the analysis via `finalize-blast-radius.mjs`; when Stage 2 was skipped there is nothing to lock and the test designer works from the requirement alone) | `regression-test-pack.xlsx` |
 | 6 | Approval before execution | `execution` (`approval-gate.mjs freeze` / `reject`) | `approved-scenarios.json` |
 | 7 | Execution results | – | `test-results.xlsx` |
 | 8 | Failure analysis & recommendations | `failures` | `failure-analysis.xlsx` |
 
-A gate can only be approved after the previous one. A "no" stops the run (`status: stopped_at_<gate>`). `workflow.mjs status` returns the next stage, which lets `/spt:start` resume a run. `workflow.mjs reset-execution` archives the last execution to `attempt-<n>/` for a re-run.
+A gate can only be approved after the stages before it are done (`ready` in `workflow.mjs gate`). A "no" stops the run (`status: stopped_at_<gate>`), except at the `questions` gate, which is not in `STOP_GATES`. `workflow.mjs status` returns the next stage, which lets `/spt:start` resume a run. `workflow.mjs reset-execution` archives the last execution to `attempt-<n>/` for a re-run.
 
 ## Repository layout
 ```
